@@ -107,6 +107,8 @@ Set **DotnetVibe.AppHost** as the startup project and run/debug as usual (Visual
 
 > On first run in development, the API applies EF Core migrations automatically.
 
+Client-side libraries under `DotnetVibe.Web/wwwroot/lib/` are restored automatically on build via [LibMan](https://learn.microsoft.com/aspnet/core/client-side/libman/) (`libman.json`).
+
 ---
 
 ## Application tour

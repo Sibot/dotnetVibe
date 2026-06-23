@@ -31,6 +31,9 @@ artifacts/
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
 
+# Client-side libraries restored by LibMan
+**/wwwroot/lib/
+
 # .NET Aspire (local dashboard / dev settings)
 .aspire/
 
@@ -53,7 +56,6 @@ ScaffoldingReadMe.txt
 ~$*
 *~
 CodeCoverage/
-wwwroot/
 
 # MSBuild Binary and Structured Log
 *.binlog
