@@ -4,9 +4,12 @@ const string projectName = "dotnetVibe";
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var sql = builder.AddSqlServer("sql")
+#pragma warning disable ASPIREPROXYENDPOINTS001
+var sql = builder.AddSqlServer("sql", port: 51433)
     .WithLifetime(ContainerLifetime.Persistent)
+    .WithEndpointProxySupport(false)
     .WithProjectGrouping(projectName);
+#pragma warning restore ASPIREPROXYENDPOINTS001
 
 var db = sql.AddDatabase("dotnetvibedb");
 
