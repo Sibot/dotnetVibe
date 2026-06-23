@@ -1,0 +1,21 @@
+﻿{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/DotnetVibe.AppHost/bin/Debug/net11.0/DotnetVibe.AppHost.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/DotnetVibe.AppHost",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
+        }
+    ]
+}
