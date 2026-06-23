@@ -11,6 +11,8 @@ builder.AddSqlServerDbContext<AppDbContext>("dotnetvibedb");
 builder.AddAzureServiceBusClient("temperature-events");
 builder.AddRedisDistributedCache("cache");
 builder.Services.AddHostedService<TemperatureQueueConsumer>();
+builder.Services.AddHostedService<DailyForecastGenerator>();
+builder.Services.AddScoped<DailyForecastService>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<WeatherForecastCacheService>();
 builder.Services.AddScoped<WeatherForecastService>();
@@ -23,9 +25,12 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    using var scope = app.Services.CreateScope();
+    await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+
+    var dailyForecastService = scope.ServiceProvider.GetRequiredService<DailyForecastService>();
+    await dailyForecastService.EnsureTodayForecastAsync();
 }
 
 app.UseExceptionHandler();

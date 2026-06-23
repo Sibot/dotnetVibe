@@ -8,6 +8,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<WeatherForecast>()
+            .HasIndex(forecast => forecast.Date)
+            .IsUnique();
+
         modelBuilder.Entity<WeatherForecast>().HasData(
             new WeatherForecast { Id = 1, Date = new DateOnly(2026, 6, 10), TemperatureC = 22, Summary = "Mild" },
             new WeatherForecast { Id = 2, Date = new DateOnly(2026, 6, 11), TemperatureC = 18, Summary = "Cool" },
