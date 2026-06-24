@@ -1,0 +1,10 @@
+.time-series-chart {
+    max-width: 100%;
+}
+
+.time-series-chart__canvas {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    height: clamp(220px, 40vw, var(--chart-height, 320px));
+}

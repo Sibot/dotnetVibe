@@ -1,0 +1,106 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="time-series-chart mb-4">
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <h2 class="h5 mb-3">@Title</h2>
+    }
+
+    @if (HasData)
+    {
+        <div class="time-series-chart__canvas" style="--chart-height: @(Height)px;">
+            <canvas id="@_canvasId" aria-label="@(Title ?? "Chart")"></canvas>
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(EmptyMessage))
+    {
+        <p class="text-muted mb-0">@EmptyMessage</p>
+    }
+</div>
+
+@code {
+    private readonly string _canvasId = $"chart-{Guid.NewGuid():N}";
+    private IJSObjectReference? _module;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ChartSeries> Series { get; set; } = [];
+
+    [Parameter]
+    public string XAxisLabel { get; set; } = "Date";
+
+    [Parameter]
+    public string YAxisLabel { get; set; } = "";
+
+    [Parameter]
+    public int Height { get; set; } = 300;
+
+    [Parameter]
+    public string? EmptyMessage { get; set; } = "No data to display.";
+
+    private bool HasData => Series.Any(series => series.Points.Count > 0);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./Components/Charts/TimeSeriesChart.razor.js");
+        }
+
+        if (_module is not null && HasData)
+        {
+            await RenderChartAsync();
+        }
+    }
+
+    private async Task RenderChartAsync()
+    {
+        if (_module is null || !HasData)
+        {
+            return;
+        }
+
+        await _module.InvokeVoidAsync("renderChart", BuildChartConfig());
+    }
+
+    private object BuildChartConfig()
+    {
+        var labels = Series
+            .SelectMany(series => series.Points)
+            .Select(point => point.X)
+            .Distinct()
+            .Order()
+            .Select(date => date.ToString("MMM d"))
+            .ToArray();
+
+        var datasets = Series.Select(series => new
+        {
+            label = series.Label,
+            data = series.Points.OrderBy(point => point.X).Select(point => point.Y).ToArray(),
+            borderColor = series.Color,
+        }).ToArray();
+
+        return new
+        {
+            canvasId = _canvasId,
+            labels,
+            datasets,
+            xAxisLabel = XAxisLabel,
+            yAxisLabel = YAxisLabel,
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is not null)
+        {
+            await _module.InvokeVoidAsync("destroyChart", _canvasId);
+            await _module.DisposeAsync();
+        }
+    }
+}
