@@ -46,6 +46,22 @@ app.MapGet("/weatherforecast", async (WeatherForecastService weatherForecastServ
     await weatherForecastService.GetForecastsAsync(cancellationToken))
 .WithName("GetWeatherForecast");
 
+app.MapPatch("/weatherforecast/{date}/temperature", async (
+    DateOnly date,
+    int delta,
+    WeatherForecastService weatherForecastService,
+    CancellationToken cancellationToken) =>
+{
+    if (delta is 0)
+    {
+        return Results.BadRequest();
+    }
+
+    var updated = await weatherForecastService.AdjustTemperatureAsync(date, delta, cancellationToken);
+    return updated is null ? Results.NotFound() : Results.Ok(updated);
+})
+.WithName("AdjustForecastTemperature");
+
 app.MapPost("/temperature/warm-up", async (TemperatureEventPublisher publisher, CancellationToken cancellationToken) =>
 {
     await publisher.PublishWarmUpAsync(cancellationToken);

@@ -24,6 +24,7 @@ else
                 <th aria-label="Temperature in Celsius">Temp. (C)</th>
                 <th aria-label="Temperature in Fahrenheit">Temp. (F)</th>
                 <th>Summary</th>
+                <th>Adjust</th>
             </tr>
         </thead>
         <tbody>
@@ -34,6 +35,22 @@ else
                     <td>@forecast.TemperatureC</td>
                     <td>@forecast.TemperatureF</td>
                     <td>@forecast.Summary</td>
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                @onclick="() => AdjustTemperatureAsync(forecast.Date, -1)"
+                                disabled="@(adjustingDate == forecast.Date)"
+                                aria-label="Decrease temperature for @forecast.Date.ToShortDateString()">
+                            −
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary"
+                                @onclick="() => AdjustTemperatureAsync(forecast.Date, 1)"
+                                disabled="@(adjustingDate == forecast.Date)"
+                                aria-label="Increase temperature for @forecast.Date.ToShortDateString()">
+                            +
+                        </button>
+                    </td>
                 </tr>
             }
         </tbody>
@@ -42,12 +59,31 @@ else
 
 @code {
     private WeatherForecast[]? forecasts;
+    private DateOnly? adjustingDate;
 
     protected override async Task OnInitializedAsync()
     {
         forecasts = await WeatherApi.GetWeatherAsync();
         WeatherHubClient.ForecastUpdated += HandleForecastUpdatedAsync;
         await WeatherHubClient.ConnectAsync();
+    }
+
+    private async Task AdjustTemperatureAsync(DateOnly date, int delta)
+    {
+        if (adjustingDate is not null)
+        {
+            return;
+        }
+
+        adjustingDate = date;
+        try
+        {
+            await WeatherApi.AdjustTemperatureAsync(date, delta);
+        }
+        finally
+        {
+            adjustingDate = null;
+        }
     }
 
     private Task HandleForecastUpdatedAsync(WeatherForecast updatedForecast)

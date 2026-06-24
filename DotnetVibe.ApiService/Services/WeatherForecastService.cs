@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using DotnetVibe.ApiService.Data;
+using DotnetVibe.ApiService.Hubs;
 using DotnetVibe.ApiService.Models;
 
 namespace DotnetVibe.ApiService.Services;
@@ -7,6 +9,7 @@ namespace DotnetVibe.ApiService.Services;
 public sealed class WeatherForecastService(
     AppDbContext db,
     WeatherForecastCacheService cache,
+    IHubContext<WeatherHub> weatherHub,
     ILogger<WeatherForecastService> logger)
 {
     public async Task<WeatherForecastDto[]> GetForecastsAsync(CancellationToken cancellationToken = default)
@@ -27,7 +30,7 @@ public sealed class WeatherForecastService(
 
         var forecasts = await db.WeatherForecasts
             .OrderBy(forecast => forecast.Date)
-            .Select(forecast => new WeatherForecastDto(forecast.Date, forecast.TemperatureC, forecast.Summary))
+            .Select(forecast => new WeatherForecastDto(forecast.Date, forecast.TemperatureC))
             .ToArrayAsync(cancellationToken);
 
         await cache.SetAsync(forecasts, cancellationToken);
@@ -37,5 +40,34 @@ public sealed class WeatherForecastService(
             forecasts.Length);
 
         return forecasts;
+    }
+
+    public async Task<WeatherForecastDto?> AdjustTemperatureAsync(
+        DateOnly date,
+        int delta,
+        CancellationToken cancellationToken = default)
+    {
+        var forecast = await db.WeatherForecasts
+            .SingleOrDefaultAsync(entry => entry.Date == date, cancellationToken);
+
+        if (forecast is null)
+        {
+            return null;
+        }
+
+        forecast.TemperatureC += delta;
+        await db.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(cancellationToken);
+
+        var dto = new WeatherForecastDto(forecast.Date, forecast.TemperatureC);
+        await weatherHub.Clients.All.SendAsync("ForecastUpdated", dto, cancellationToken);
+
+        logger.LogInformation(
+            "Adjusted temperature for {Date} by {Delta}C to {TemperatureC}C",
+            date,
+            delta,
+            forecast.TemperatureC);
+
+        return dto;
     }
 }

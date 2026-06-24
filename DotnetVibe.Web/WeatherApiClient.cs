@@ -27,9 +27,15 @@ public class WeatherApiClient(HttpClient httpClient)
         var response = await httpClient.PostAsync("/temperature/warm-up", content: null, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task AdjustTemperatureAsync(DateOnly date, int delta, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PatchAsync(
+            $"/weatherforecast/{date:yyyy-MM-dd}/temperature?delta={delta}",
+            content: null,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 }
 
-public record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public record WeatherForecast(DateOnly Date, int TemperatureC, string Summary, int TemperatureF);

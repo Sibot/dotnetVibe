@@ -57,7 +57,7 @@ public sealed class TemperatureQueueConsumer(
             await db.SaveChangesAsync(args.CancellationToken);
             await weatherForecastCache.InvalidateAsync(args.CancellationToken);
 
-            var updatedForecast = new WeatherForecastDto(forecast.Date, forecast.TemperatureC, forecast.Summary);
+            var updatedForecast = new WeatherForecastDto(forecast.Date, forecast.TemperatureC);
             await weatherHub.Clients.All.SendAsync("ForecastUpdated", updatedForecast, args.CancellationToken);
 
             logger.LogInformation("Increased temperature for forecast {ForecastId} to {TemperatureC}C", forecast.Id, forecast.TemperatureC);

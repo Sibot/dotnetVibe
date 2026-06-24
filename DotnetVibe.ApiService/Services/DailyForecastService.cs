@@ -28,7 +28,6 @@ public sealed class DailyForecastService(
         {
             Date = today,
             TemperatureC = temperatureC,
-            Summary = WeatherForecastSummary.FromTemperature(temperatureC),
         };
 
         db.WeatherForecasts.Add(forecast);
@@ -46,14 +45,14 @@ public sealed class DailyForecastService(
 
         await weatherForecastCache.InvalidateAsync(cancellationToken);
 
-        var dto = new WeatherForecastDto(forecast.Date, forecast.TemperatureC, forecast.Summary);
+        var dto = new WeatherForecastDto(forecast.Date, forecast.TemperatureC);
         await weatherHub.Clients.All.SendAsync("ForecastUpdated", dto, cancellationToken);
 
         logger.LogInformation(
             "Generated daily forecast for {Date} with temperature {TemperatureC}C ({Summary})",
             forecast.Date,
             forecast.TemperatureC,
-            forecast.Summary);
+            dto.Summary);
     }
 
     private static bool IsUniqueDateViolation(DbUpdateException exception) =>
