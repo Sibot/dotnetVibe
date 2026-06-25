@@ -28,17 +28,21 @@ public sealed class TemperatureQueueConsumer(
         processor.ProcessMessageAsync += ProcessMessageAsync;
         processor.ProcessErrorAsync += ProcessErrorAsync;
 
-        await processor.StartProcessingAsync(stoppingToken);
-
         try
         {
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-        {
+            await processor.StartProcessingAsync(CancellationToken.None);
+
+            try
+            {
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+            }
         }
         finally
         {
+            logger.LogInformation("Stopping temperature queue consumer");
             await processor.StopProcessingAsync(CancellationToken.None);
         }
     }

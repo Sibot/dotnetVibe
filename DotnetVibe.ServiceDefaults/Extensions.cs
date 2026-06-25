@@ -20,6 +20,11 @@ public static class Extensions
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
+        builder.Services.Configure<HostOptions>(options =>
+        {
+            options.ShutdownTimeout = TimeSpan.FromSeconds(15);
+        });
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();

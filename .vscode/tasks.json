@@ -1,4 +1,4 @@
-﻿{
+{
     "version": "2.0.0",
     "tasks": [
         {
@@ -29,6 +29,11 @@
             "label": "watch",
             "command": "dotnet",
             "type": "process",
+            "options": {
+                "env": {
+                    "DOTNET_WATCH_PROCESS_CLEANUP_TIMEOUT_MS": "15000"
+                }
+            },
             "args": [
                 "watch",
                 "run",

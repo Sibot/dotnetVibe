@@ -1,4 +1,7 @@
 ﻿using DotnetVibe.AppHost.Extensions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 
 
@@ -116,5 +119,16 @@ authService
 
 
 
-builder.Build().Run();
+var app = builder.Build();
+
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+
+var logger = app.Services
+    .GetRequiredService<ILoggerFactory>()
+    .CreateLogger("DotnetVibe.AppHost");
+
+lifetime.ApplicationStopping.Register(() =>
+    logger.LogInformation("Shutting down {ProjectName} AppHost...", projectName));
+
+app.Run();
 

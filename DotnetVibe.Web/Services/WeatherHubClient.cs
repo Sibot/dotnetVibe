@@ -3,11 +3,22 @@ using WeatherForecast = DotnetVibe.Web.WeatherForecast;
 
 namespace DotnetVibe.Web.Services;
 
-public sealed class WeatherHubClient(IConfiguration configuration, ILogger<WeatherHubClient> logger) : IAsyncDisposable
+public sealed class WeatherHubClient : IAsyncDisposable
 {
-    private readonly Uri hubUri = GetHubUri(configuration);
+    private readonly Uri hubUri;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
+    private readonly ILogger<WeatherHubClient> logger;
     private HubConnection? hubConnection;
+
+    public WeatherHubClient(
+        IConfiguration configuration,
+        IHostApplicationLifetime lifetime,
+        ILogger<WeatherHubClient> logger)
+    {
+        hubUri = GetHubUri(configuration);
+        this.logger = logger;
+        lifetime.ApplicationStopping.Register(DisconnectForShutdown);
+    }
 
     public event Func<WeatherForecast, Task>? ForecastUpdated;
 
@@ -47,6 +58,21 @@ public sealed class WeatherHubClient(IConfiguration configuration, ILogger<Weath
         }
 
         connectionLock.Dispose();
+    }
+
+    private void DisconnectForShutdown()
+    {
+        try
+        {
+            if (hubConnection?.State is HubConnectionState.Connected or HubConnectionState.Reconnecting)
+            {
+                hubConnection.StopAsync(CancellationToken.None).GetAwaiter().GetResult();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Weather hub disconnect during shutdown");
+        }
     }
 
     private HubConnection BuildConnection()
