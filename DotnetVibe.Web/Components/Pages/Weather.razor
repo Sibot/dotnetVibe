@@ -1,162 +1,181 @@
-﻿@page "/weather"
-@rendermode InteractiveServer
-@implements IAsyncDisposable
-
-@inject WeatherApiClient WeatherApi
-@inject WeatherHubClient WeatherHubClient
-
-<PageTitle>Weather</PageTitle>
-
-<h1 class="h2">Weather</h1>
-
-<p class="text-muted">This component demonstrates showing data loaded from a backend API service and updated in real time.</p>
-
-@if (forecasts == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <TimeSeriesChart Title="Temperature timeline"
-                     Series="chartSeries"
-                     XAxisLabel="Date"
-                     YAxisLabel="°C"
-                     Height="320" />
-
-    <div class="d-md-none">
-        @foreach (var forecast in forecasts)
-        {
-            <div class="card mb-2 shadow-sm">
-                <div class="card-body py-3">
-                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                        <strong class="text-nowrap">@forecast.Date.ToShortDateString()</strong>
-                        <span class="badge text-bg-secondary">@forecast.Summary</span>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span>
-                            <span class="fw-semibold">@forecast.TemperatureC</span> °C
-                            <span class="text-muted">/</span>
-                            <span class="fw-semibold">@forecast.TemperatureF</span> °F
-                        </span>
-                        @AdjustButtons(forecast)
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <div class="d-none d-md-block table-responsive">
-        <table class="table table-sm align-middle mb-0">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                    <th aria-label="Temperature in Fahrenheit">Temp. (F)</th>
-                    <th>Summary</th>
-                    <th>Adjust</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var forecast in forecasts)
-                {
-                    <tr>
-                        <td>@forecast.Date.ToShortDateString()</td>
-                        <td>@forecast.TemperatureC</td>
-                        <td>@forecast.TemperatureF</td>
-                        <td>@forecast.Summary</td>
-                        <td class="text-nowrap">@AdjustButtons(forecast)</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
-}
-
-@code {
-    private WeatherForecast[]? forecasts;
-    private DateOnly? adjustingDate;
-    private IReadOnlyList<ChartSeries> chartSeries = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        forecasts = await WeatherApi.GetWeatherAsync();
-        RefreshChart();
-        WeatherHubClient.ForecastUpdated += HandleForecastUpdatedAsync;
-        await WeatherHubClient.ConnectAsync();
-    }
-
-    private void RefreshChart()
-    {
-        chartSeries = forecasts is null ? [] : WeatherTimelineChartMapper.ToChartSeries(forecasts);
-    }
-
-    private RenderFragment<WeatherForecast> AdjustButtons => forecast => __builder =>
-    {
-        var dateLabel = forecast.Date.ToShortDateString();
-        <div class="btn-group btn-group-sm" role="group" aria-label="Adjust temperature for @dateLabel">
-            <button type="button"
-                    class="btn btn-outline-secondary px-3 py-2"
-                    @onclick="() => AdjustTemperatureAsync(forecast.Date, -1)"
-                    disabled="@(adjustingDate == forecast.Date)"
-                    aria-label="Decrease temperature for @dateLabel">
-                −
-            </button>
-            <button type="button"
-                    class="btn btn-outline-secondary px-3 py-2"
-                    @onclick="() => AdjustTemperatureAsync(forecast.Date, 1)"
-                    disabled="@(adjustingDate == forecast.Date)"
-                    aria-label="Increase temperature for @dateLabel">
-                +
-            </button>
-        </div>
-    };
-
-    private async Task AdjustTemperatureAsync(DateOnly date, int delta)
-    {
-        if (adjustingDate is not null)
-        {
-            return;
-        }
-
-        adjustingDate = date;
-        try
-        {
-            await WeatherApi.AdjustTemperatureAsync(date, delta);
-        }
-        finally
-        {
-            adjustingDate = null;
-        }
-    }
-
-    private Task HandleForecastUpdatedAsync(WeatherForecast updatedForecast)
-    {
-        if (forecasts is null)
-        {
-            forecasts = [updatedForecast];
-            RefreshChart();
-            return InvokeAsync(StateHasChanged);
-        }
-
-        var index = Array.FindIndex(forecasts, forecast => forecast.Date == updatedForecast.Date);
-        if (index >= 0)
-        {
-            forecasts[index] = updatedForecast;
-        }
-        else
-        {
-            forecasts = [.. forecasts, updatedForecast];
-            Array.Sort(forecasts, (left, right) => left.Date.CompareTo(right.Date));
-        }
-
-        RefreshChart();
-
-        return InvokeAsync(StateHasChanged);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        WeatherHubClient.ForecastUpdated -= HandleForecastUpdatedAsync;
-        await ValueTask.CompletedTask;
-    }
-}
+﻿@page "/weather"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+
+@inject WeatherApiClient WeatherApi
+@inject WeatherHubClient WeatherHubClient
+
+<PageTitle>Weather</PageTitle>
+
+<h1 class="h2">Weather</h1>
+
+<p class="text-muted">This component demonstrates showing data loaded from a backend API service and updated in real
+    time.</p>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <p class="text-warning small" role="status">@statusMessage</p>
+}
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <TimeSeriesChart Title="Temperature timeline" Series="chartSeries" XAxisLabel="Date" YAxisLabel="°C" Height="320" />
+
+    <div class="d-md-none">
+        @foreach (var forecast in forecasts)
+        {
+            <div class="card mb-2 shadow-sm">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                        <strong class="text-nowrap">@forecast.Date.ToShortDateString()</strong>
+                        <span class="badge text-bg-secondary">@forecast.Summary</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>
+                            <span class="fw-semibold">@forecast.TemperatureC</span> °C
+                            <span class="text-muted">/</span>
+                            <span class="fw-semibold">@forecast.TemperatureF</span> °F
+                        </span>
+                        @AdjustButtons(forecast)
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="d-none d-md-block table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th aria-label="Temperature in Celsius">Temp. (C)</th>
+                    <th aria-label="Temperature in Fahrenheit">Temp. (F)</th>
+                    <th>Summary</th>
+                    <th>Adjust</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var forecast in forecasts)
+                {
+                    <tr>
+                        <td>@forecast.Date.ToShortDateString()</td>
+                        <td>@forecast.TemperatureC</td>
+                        <td>@forecast.TemperatureF</td>
+                        <td>@forecast.Summary</td>
+                        <td class="text-nowrap">@AdjustButtons(forecast)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private WeatherForecast[]? forecasts;
+    private DateOnly? adjustingDate;
+    private string? statusMessage;
+    private IReadOnlyList<ChartSeries> chartSeries = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        forecasts = await WeatherApi.GetWeatherAsync();
+        RefreshChart();
+        WeatherHubClient.ForecastUpdated += HandleForecastUpdatedAsync;
+        await WeatherHubClient.ConnectAsync();
+    }
+
+    private void RefreshChart()
+    {
+        chartSeries = forecasts is null ? [] : WeatherTimelineChartMapper.ToChartSeries(forecasts);
+    }
+
+    private RenderFragment<WeatherForecast> AdjustButtons => forecast => __builder =>
+    {
+        var dateLabel = forecast.Date.ToShortDateString();
+        <AuthorizeView Policy="@AuthPolicies.AdjustTemperature">
+            <Authorized>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Adjust temperature for @dateLabel">
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2"
+                        @onclick="() => AdjustTemperatureAsync(forecast.Date, -1)" disabled="@(adjustingDate == forecast.Date)"
+                        aria-label="Decrease temperature for @dateLabel">
+                        −
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2"
+                        @onclick="() => AdjustTemperatureAsync(forecast.Date, 1)" disabled="@(adjustingDate == forecast.Date)"
+                        aria-label="Increase temperature for @dateLabel">
+                        +
+                    </button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="btn-group btn-group-sm opacity-50" role="group"
+                    aria-label="Adjust temperature for @dateLabel (admin only)">
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2" disabled title="Admin only">−</button>
+                    <button type="button" class="btn btn-outline-secondary px-3 py-2" disabled title="Admin only">+</button>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    };
+
+    private async Task AdjustTemperatureAsync(DateOnly date, int delta)
+    {
+        if (adjustingDate is not null)
+        {
+            return;
+        }
+
+        adjustingDate = date;
+        statusMessage = null;
+        try
+        {
+            await WeatherApi.AdjustTemperatureAsync(date, delta);
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Failed to adjust temperature. Make sure you are signed in as Admin.";
+        }
+        catch (Exception)
+        {
+            statusMessage = "Failed to adjust temperature.";
+        }
+        finally
+        {
+            adjustingDate = null;
+        }
+    }
+
+    private Task HandleForecastUpdatedAsync(WeatherForecast updatedForecast)
+    {
+        if (forecasts is null)
+        {
+            forecasts = [updatedForecast];
+            RefreshChart();
+            return InvokeAsync(StateHasChanged);
+        }
+
+        var index = Array.FindIndex(forecasts, forecast => forecast.Date == updatedForecast.Date);
+        if (index >= 0)
+        {
+            forecasts[index] = updatedForecast;
+        }
+        else
+        {
+            forecasts = [.. forecasts, updatedForecast];
+            Array.Sort(forecasts, (left, right) => left.Date.CompareTo(right.Date));
+        }
+
+        RefreshChart();
+
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        WeatherHubClient.ForecastUpdated -= HandleForecastUpdatedAsync;
+        await ValueTask.CompletedTask;
+    }
+}

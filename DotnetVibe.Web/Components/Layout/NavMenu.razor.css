@@ -1,3 +1,11 @@
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100%;
+    position: relative;
+}
+
 .navbar-toggler {
     appearance: none;
     cursor: pointer;
@@ -92,11 +100,14 @@
     }
 
     .nav-scrollable {
-        /* Never collapse the sidebar for wide screens */
         display: block;
-
-        /* Allow sidebar to scroll for tall menus */
-        height: calc(100vh - 3.5rem);
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
     }
+}
+
+.auth-panel {
+    flex-shrink: 0;
+    margin-top: auto;
 }

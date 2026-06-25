@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DotnetVibe.ApiService\DotnetVibe.ApiService.csproj" />
     <ProjectReference Include="..\DotnetVibe.Web\DotnetVibe.Web.csproj" />
+    <ProjectReference Include="..\DotnetVibe.AuthService\DotnetVibe.AuthService.csproj" />
   </ItemGroup>
 
 </Project>

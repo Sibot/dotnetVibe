@@ -1,11 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DotnetVibe.ApiService;
+using Microsoft.EntityFrameworkCore;
 using DotnetVibe.ApiService.Data;
 using DotnetVibe.ApiService.Hubs;
 using DotnetVibe.ApiService.Services;
+using DotnetVibe.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.Services.AddApiAuthentication(builder.Configuration);
 
 builder.AddSqlServerDbContext<AppDbContext>("dotnetvibedb");
 builder.AddAzureServiceBusClient("temperature-events");
@@ -40,6 +43,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapGet("/", () => "API service is running. Navigate to /weatherforecast to see sample data.");
 
 app.MapGet("/weatherforecast", async (WeatherForecastService weatherForecastService, CancellationToken cancellationToken) =>
@@ -56,10 +62,10 @@ app.MapPatch("/weatherforecast/{date}/temperature", async (
     {
         return Results.BadRequest();
     }
-
     var updated = await weatherForecastService.AdjustTemperatureAsync(date, delta, cancellationToken);
     return updated is null ? Results.NotFound() : Results.Ok(updated);
 })
+.RequireAuthorization(AuthPolicies.AdjustTemperature)
 .WithName("AdjustForecastTemperature");
 
 app.MapPost("/temperature/warm-up", async (TemperatureEventPublisher publisher, CancellationToken cancellationToken) =>
@@ -67,6 +73,7 @@ app.MapPost("/temperature/warm-up", async (TemperatureEventPublisher publisher, 
     await publisher.PublishWarmUpAsync(cancellationToken);
     return Results.Accepted();
 })
+.RequireAuthorization(AuthPolicies.WarmUp)
 .WithName("RequestTemperatureWarmUp");
 
 app.MapHub<WeatherHub>("/hubs/weather");
