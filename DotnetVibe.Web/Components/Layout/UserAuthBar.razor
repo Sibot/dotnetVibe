@@ -2,11 +2,11 @@
     <AuthorizeView>
         <Authorized>
             <div class="user-auth-bar__identity">
-                <span class="user-auth-bar__label">Signed in as</span>
-                <strong class="user-auth-bar__name">@context.User.Identity?.Name</strong>
+                <span class="user-auth-bar__label">Signed in</span>
                 <span class="user-auth-bar__role">@GetPrimaryRole(context.User)</span>
             </div>
-            <a class="btn btn-sm @(Sidebar ? "btn-outline-light w-100" : "btn-outline-secondary")" href="logout">Sign out</a>
+            <a class="btn btn-sm @(Sidebar ? "btn-outline-light w-100" : "btn-outline-secondary")" href="logout">Sign
+                out</a>
         </Authorized>
         <NotAuthorized>
             <a class="btn btn-sm btn-primary @(Sidebar ? "w-100" : null)" href="login">Sign in</a>
