@@ -16,13 +16,13 @@ namespace DotnetVibe.ApiService.Migrations
         // If you encounter a merge conflict in the line below, it means you need to
         // discard one of the migration branches and recreate its migrations on top of
         // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-        public override string LatestMigrationId => "20260624132511_RemoveSummaryFromWeatherForecast";
+        public override string LastMigrationId => "20260624132511_RemoveSummaryFromWeatherForecast";
 
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "11.0.0-preview.4.26230.115")
+                .HasAnnotation("ProductVersion", "11.0.0-preview.5.26302.115")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
