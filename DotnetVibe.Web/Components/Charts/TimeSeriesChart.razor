@@ -45,16 +45,23 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        try
         {
-            _module = await JS.InvokeAsync<IJSObjectReference>(
-                "import",
-                "./Components/Charts/TimeSeriesChart.razor.js");
-        }
+            if (firstRender)
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>(
+                    "import",
+                    "./Components/Charts/TimeSeriesChart.razor.js");
+            }
 
-        if (_module is not null && HasData)
+            if (_module is not null && HasData)
+            {
+                await RenderChartAsync();
+            }
+        }
+        catch (JSDisconnectedException)
         {
-            await RenderChartAsync();
+            // Circuit disconnected before render completed (navigation, refresh, etc.).
         }
     }
 
@@ -97,10 +104,23 @@
 
     public async ValueTask DisposeAsync()
     {
-        if (_module is not null)
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
         {
             await _module.InvokeVoidAsync("destroyChart", _canvasId);
             await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit already gone; browser-side chart cleanup is not possible.
+        }
+        finally
+        {
+            _module = null;
         }
     }
 }
