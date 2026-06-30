@@ -70,5 +70,6 @@ TestResult.xml
 nunit-*.xml
 
 # AI instructions
+.agent
 .cursorrules
 .cursor
