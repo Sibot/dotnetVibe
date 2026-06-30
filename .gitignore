@@ -68,3 +68,7 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# AI instructions
+.cursorrules
+.cursor
