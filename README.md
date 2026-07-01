@@ -120,12 +120,18 @@ Client-side libraries under `DotnetVibe.Web/wwwroot/lib/` are restored automatic
 | `/` | Home — landing page |
 | `/counter` | Increments a counter and posts a warm-up request to the API |
 | `/weather` | Displays forecasts from the API; updates live via SignalR when temperatures change |
+| `/weather-map` | Geographic map with real Open-Meteo forecast for browser or pinned locations |
 
 ### API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/weatherforecast` | Returns cached or database-backed forecasts |
+| `GET` | `/weather-map/forecast` | Returns real forecast for latitude/longitude (Open-Meteo) |
+| `GET` | `/user/locations` | Lists pinned places for the signed-in user |
+| `POST` | `/user/locations` | Creates a pinned place |
+| `PUT` | `/user/locations/{id}` | Updates a pinned place |
+| `DELETE` | `/user/locations/{id}` | Deletes a pinned place |
 | `POST` | `/temperature/warm-up` | Publishes a warm-up event to the Service Bus queue |
 | — | `/hubs/weather` | SignalR hub — broadcasts `ForecastUpdated` to connected clients |
 

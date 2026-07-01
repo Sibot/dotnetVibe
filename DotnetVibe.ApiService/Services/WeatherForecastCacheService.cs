@@ -1,6 +1,8 @@
 ﻿using System.Text.Json;
-using Microsoft.Extensions.Caching.Distributed;
+
 using DotnetVibe.ApiService.Models;
+
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace DotnetVibe.ApiService.Services;
 
@@ -9,6 +11,7 @@ public sealed class WeatherForecastCacheService(
     ILogger<WeatherForecastCacheService> logger)
 {
     public const string CacheKey = "weather:forecasts";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -26,7 +29,14 @@ public sealed class WeatherForecastCacheService(
     public async Task SetAsync(WeatherForecastDto[] forecasts, CancellationToken cancellationToken = default)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(forecasts, JsonOptions);
-        await cache.SetAsync(CacheKey, bytes, cancellationToken);
+        await cache.SetAsync(
+            CacheKey,
+            bytes,
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = CacheTtl
+            },
+            cancellationToken);
         logger.LogDebug("Wrote {ForecastCount} weather forecasts to Redis cache (key: {CacheKey})", forecasts.Length, CacheKey);
     }
 

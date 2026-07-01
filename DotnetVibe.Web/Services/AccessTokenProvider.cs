@@ -1,3 +1,5 @@
+using DotnetVibe.Auth;
+
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -5,7 +7,9 @@ namespace DotnetVibe.Web.Services;
 
 public sealed class AccessTokenProvider(
     IHttpContextAccessor httpContextAccessor,
-    CircuitAccessTokenStore circuitAccessTokenStore)
+    CircuitAccessTokenStore circuitAccessTokenStore,
+    OAuthTokenRefresher oauthTokenRefresher,
+    TimeProvider timeProvider)
 {
     public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
     {
@@ -25,6 +29,10 @@ public sealed class AccessTokenProvider(
             return null;
         }
 
+        var expiresAt = await httpContext.GetTokenAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            "expires_at");
+
         var accessToken = await httpContext.GetTokenAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             "access_token");
@@ -34,6 +42,13 @@ public sealed class AccessTokenProvider(
             var authResult = await httpContext.AuthenticateAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme);
             accessToken = authResult.Properties?.GetTokenValue("access_token");
+            expiresAt ??= authResult.Properties?.GetTokenValue("expires_at");
+        }
+
+        if (OAuthTokenRefreshPolicy.ShouldRefresh(expiresAt, timeProvider.GetUtcNow()))
+        {
+            accessToken = await oauthTokenRefresher.RefreshAccessTokenAsync(cancellationToken)
+                ?? accessToken;
         }
 
         if (!string.IsNullOrWhiteSpace(accessToken) && circuitId is not null)

@@ -9,6 +9,7 @@
     <p class="text-muted">Use a seeded development account to continue.</p>
 
     <form method="post" class="auth-form">
+        <input type="hidden" asp-for="ReturnUrl" />
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         <div class="mb-3">
@@ -31,12 +32,15 @@
         <button type="submit" class="btn btn-primary w-100">Sign in</button>
     </form>
 
-    <div class="dev-accounts mt-4">
-        <strong>Development accounts</strong>
-        <ul>
-            <li><code>user@dotnetvibe.local</code> — User role</li>
-            <li><code>admin@dotnetvibe.local</code> — Admin role</li>
-            <li>Password: <code>DevPassword123!</code></li>
-        </ul>
-    </div>
+    @if (Model.ShowDevAccounts)
+    {
+        <div class="dev-accounts mt-4">
+            <strong>Development accounts</strong>
+            <ul>
+                <li><code>user@dotnetvibe.local</code> — User role</li>
+                <li><code>admin@dotnetvibe.local</code> — Admin role</li>
+                <li>Password is configured via <code>Authentication:DevSeedPassword</code> (user secrets).</li>
+            </ul>
+        </div>
+    }
 </div>

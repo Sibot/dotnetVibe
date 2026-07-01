@@ -1,13 +1,17 @@
 using System.Security.Claims;
+
 using DotnetVibe.AuthService.Data;
+
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+
 using OpenIddict.Abstractions;
 using OpenIddict.Server.AspNetCore;
+
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace DotnetVibe.AuthService.Controllers;

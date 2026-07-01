@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
-using WeatherForecast = DotnetVibe.Web.WeatherForecast;
 
 namespace DotnetVibe.Web.Services;
 

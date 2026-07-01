@@ -1,7 +1,9 @@
 using DotnetVibe.Auth;
 using DotnetVibe.AuthService.Data;
 using DotnetVibe.AuthService.Services;
+
 using Microsoft.AspNetCore.Identity;
+
 using OpenIddict.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,9 +28,14 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
 });
 
-builder.Services.AddOpenIddict()
+var openIddict = builder.Services.AddOpenIddict()
     .AddCore(options => options.UseEntityFrameworkCore().UseDbContext<ApplicationDbContext>())
     .AddServer(options =>
     {
@@ -47,8 +54,16 @@ builder.Services.AddOpenIddict()
             OpenIddictConstants.Scopes.Roles,
             AuthScopes.Api);
 
-        options.AddDevelopmentEncryptionCertificate()
-            .AddDevelopmentSigningCertificate();
+        if (builder.Environment.IsDevelopment())
+        {
+            options.AddDevelopmentEncryptionCertificate()
+                .AddDevelopmentSigningCertificate();
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "Configure production OpenIddict signing and encryption certificates before deploying AuthService.");
+        }
 
         options.UseAspNetCore()
             .EnableAuthorizationEndpointPassthrough()
@@ -75,6 +90,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseSecurityHeaders(new SecurityHeadersOptions
+{
+    FrameOptions = "SAMEORIGIN"
+});
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();

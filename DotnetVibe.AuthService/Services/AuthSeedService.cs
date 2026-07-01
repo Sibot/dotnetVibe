@@ -1,8 +1,11 @@
 using DotnetVibe.Auth;
 using DotnetVibe.AuthService.Data;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
 using OpenIddict.Abstractions;
+
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace DotnetVibe.AuthService.Services;
@@ -10,10 +13,9 @@ namespace DotnetVibe.AuthService.Services;
 public sealed class AuthSeedService(
     IServiceProvider serviceProvider,
     IConfiguration configuration,
+    IHostEnvironment environment,
     ILogger<AuthSeedService> logger)
 {
-    public const string DevPassword = "DevPassword123!";
-
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
@@ -63,7 +65,7 @@ public sealed class AuthSeedService(
                 EmailConfirmed = true
             };
 
-            var result = await userManager.CreateAsync(user, DevPassword);
+            var result = await userManager.CreateAsync(user, AuthConfiguration.GetDevSeedPassword(configuration, environment));
             if (!result.Succeeded)
             {
                 throw new InvalidOperationException(
@@ -104,7 +106,7 @@ public sealed class AuthSeedService(
         var descriptor = new OpenIddictApplicationDescriptor
         {
             ClientId = AuthClients.Web,
-            ClientSecret = AuthClients.WebSecret,
+            ClientSecret = AuthConfiguration.GetWebClientSecret(configuration, environment),
             DisplayName = "dotnetVibe Web",
             ClientType = ClientTypes.Confidential,
             ConsentType = ConsentTypes.Implicit,
@@ -119,6 +121,7 @@ public sealed class AuthSeedService(
                 Permissions.Scopes.Email,
                 Permissions.Scopes.Profile,
                 Permissions.Scopes.Roles,
+                Permissions.Prefixes.Scope + Scopes.OfflineAccess,
                 Permissions.Prefixes.Scope + AuthScopes.Api
             }
         };

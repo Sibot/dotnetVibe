@@ -1,4 +1,5 @@
 using DotnetVibe.Auth;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.JsonWebTokens;
 
@@ -6,7 +7,10 @@ namespace DotnetVibe.ApiService;
 
 public static class AuthenticationExtensions
 {
-    public static IServiceCollection AddApiAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApiAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         JsonWebTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -21,7 +25,7 @@ public static class AuthenticationExtensions
                 options.MapInboundClaims = false;
                 options.TokenValidationParameters.NameClaimType = "name";
                 options.TokenValidationParameters.RoleClaimType = "role";
-                options.RequireHttpsMetadata = false;
+                options.RequireHttpsMetadata = AuthConfiguration.GetRequireHttpsMetadata(configuration, environment);
             });
 
         services.AddAuthorization(options =>

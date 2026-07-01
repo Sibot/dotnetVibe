@@ -26,6 +26,16 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "format",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "format",
+                "${workspaceFolder}/DotnetVibe.sln"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "watch",
             "command": "dotnet",
             "type": "process",

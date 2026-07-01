@@ -5,8 +5,13 @@
                 <span class="user-auth-bar__label">Signed in</span>
                 <span class="user-auth-bar__role">@GetPrimaryRole(context.User)</span>
             </div>
-            <a class="btn btn-sm @(Sidebar ? "btn-outline-light w-100" : "btn-outline-secondary")" href="logout">Sign
-                out</a>
+            <form method="post" action="/logout" class="m-0" data-enhance="false">
+                <AntiforgeryToken />
+                <button type="submit"
+                    class="btn btn-sm @(Sidebar ? "btn-outline-light w-100" : "btn-outline-secondary")">
+                    Sign out
+                </button>
+            </form>
         </Authorized>
         <NotAuthorized>
             <a class="btn btn-sm btn-primary @(Sidebar ? "w-100" : null)" href="login">Sign in</a>

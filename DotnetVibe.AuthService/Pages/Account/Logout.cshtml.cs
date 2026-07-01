@@ -1,4 +1,6 @@
+using DotnetVibe.Auth;
 using DotnetVibe.AuthService.Data;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -10,6 +12,6 @@ public sealed class LogoutModel(SignInManager<ApplicationUser> signInManager) : 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         await signInManager.SignOutAsync();
-        return LocalRedirect(returnUrl ?? "/");
+        return LocalRedirect(LocalReturnUrlValidator.Normalize(returnUrl));
     }
 }

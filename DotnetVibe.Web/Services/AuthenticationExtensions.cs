@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
+
 using DotnetVibe.Auth;
+
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -25,10 +27,19 @@ public sealed class AccessTokenHandler(AccessTokenProvider accessTokenProvider) 
 
 public static class AuthenticationExtensions
 {
-    public static IServiceCollection AddWebAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddWebAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         var authority = configuration["Authentication:Authority"]
             ?? throw new InvalidOperationException("Authentication:Authority is not configured.");
+
+        var clientSecret = AuthConfiguration.GetWebClientSecret(configuration, environment);
+        var requireHttpsMetadata = AuthConfiguration.GetRequireHttpsMetadata(configuration, environment);
+        var secureCookies = environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
 
         services.AddAuthentication(options =>
             {
@@ -39,25 +50,34 @@ public static class AuthenticationExtensions
             {
                 options.LoginPath = "/login";
                 options.LogoutPath = "/logout";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = secureCookies;
+                options.Cookie.SameSite = SameSiteMode.Lax;
             })
             .AddOpenIdConnect(options =>
             {
                 options.Authority = authority;
                 options.ClientId = AuthClients.Web;
-                options.ClientSecret = AuthClients.WebSecret;
+                options.ClientSecret = clientSecret;
                 options.ResponseType = OpenIdConnectResponseType.Code;
                 options.SaveTokens = true;
                 options.GetClaimsFromUserInfoEndpoint = true;
                 options.MapInboundClaims = false;
                 options.TokenValidationParameters.NameClaimType = "name";
                 options.TokenValidationParameters.RoleClaimType = "role";
+                options.RequireHttpsMetadata = requireHttpsMetadata;
                 options.Scope.Clear();
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
                 options.Scope.Add("roles");
+                options.Scope.Add("offline_access");
                 options.Scope.Add(AuthScopes.Api);
             });
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddHttpClient(nameof(OAuthTokenRefresher));
+        services.AddSingleton<OAuthTokenRefresher>();
 
         services.AddAuthorization(options =>
         {

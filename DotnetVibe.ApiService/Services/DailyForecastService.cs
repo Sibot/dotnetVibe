@@ -1,8 +1,9 @@
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using DotnetVibe.ApiService.Data;
 using DotnetVibe.ApiService.Hubs;
 using DotnetVibe.ApiService.Models;
+
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace DotnetVibe.ApiService.Services;
 

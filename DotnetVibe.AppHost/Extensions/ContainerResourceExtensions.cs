@@ -1,7 +1,4 @@
-﻿using Aspire.Hosting;
-using Aspire.Hosting.ApplicationModel;
-
-namespace DotnetVibe.AppHost.Extensions;
+﻿namespace DotnetVibe.AppHost.Extensions;
 
 public static class ContainerResourceExtensions
 {

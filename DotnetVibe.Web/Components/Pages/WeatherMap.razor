@@ -1,0 +1,436 @@
+@page "/weather-map"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
+@inject WeatherMapApiClient WeatherMapApi
+@inject IGeolocationService GeolocationService
+@inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Weather map</PageTitle>
+
+<h1 class="h2">Weather map</h1>
+
+<p class="text-muted">Real forecast for your location. Sign in to save pinned places.</p>
+
+@if (hasCompletedInitialLoad && !string.IsNullOrEmpty(statusMessage))
+{
+    <p class="text-warning small" role="status">@statusMessage</p>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="weather-map-panel border rounded" aria-busy="@IsMapLoading">
+            @if (IsMapLoading)
+            {
+                <div class="weather-map-panel__spinner">
+                    <div class="spinner-border text-secondary" role="status">
+                        <span class="visually-hidden">Loading map...</span>
+                    </div>
+                </div>
+            }
+            <div id="weather-map" class="weather-map" role="img" aria-label="Weather map"></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 card-title mb-0">Location</h2>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                        @onclick="RefreshForecastAsync"
+                        disabled="@(isLoading || activeLatitude is null)">
+                        Refresh
+                    </button>
+                </div>
+
+                @if (isAuthenticated)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="location-picker">Active place</label>
+                        <select id="location-picker" class="form-select" @onchange="OnLocationSelectionChanged">
+                            <option value="browser" selected="@(activeSelection == ActiveSelectionKind.Browser)">Current position</option>
+                            @foreach (var location in pinnedLocations.OrderBy(l => l.SortOrder))
+                            {
+                                <option value="@location.Id" selected="@(activeSelection == ActiveSelectionKind.Pinned && activePinnedId == location.Id)">
+                                    @location.Name
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <h3 class="h6">Pinned places</h3>
+                        @if (pinnedLocations.Count == 0)
+                        {
+                            <p class="small text-muted mb-2">No pinned places yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-group list-group-flush mb-2">
+                                @foreach (var location in pinnedLocations.OrderBy(l => l.SortOrder))
+                                {
+                                    <li class="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                                        @if (renamingId == location.Id)
+                                        {
+                                            <input type="text" class="form-control form-control-sm" @bind="renamingName" />
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" @onclick="SaveRenameAsync">Save</button>
+                                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelRename">Cancel</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span>@location.Name</span>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    @onclick="() => StartRename(location)">Rename</button>
+                                                <button type="button" class="btn btn-outline-danger"
+                                                    @onclick="() => DeleteLocationAsync(location.Id)">Delete</button>
+                                            </div>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" placeholder="Name" @bind="newPinName" />
+                            <button type="button" class="btn btn-outline-primary" @onclick="PinCurrentLocationAsync"
+                                disabled="@(browserPosition is null || string.IsNullOrWhiteSpace(newPinName))">
+                                Pin here
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="small text-muted">Using your browser location. <a href="/login?returnUrl=/weather-map">Sign in</a> to save places.</p>
+                }
+
+                @if (IsForecastLoading)
+                {
+                    <div class="weather-forecast-panel" aria-busy="true">
+                        <div class="weather-forecast-panel__spinner">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="visually-hidden">Loading forecast...</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (forecast is null)
+                {
+                    <p class="mb-0"><em>No forecast available.</em></p>
+                }
+                else
+                {
+                    <h3 class="h6 mt-3">Right now</h3>
+                    <p class="mb-1">
+                        <span class="fs-4 fw-semibold">@forecast.Current.TemperatureCelsius.ToString("0.#")</span> °C
+                    </p>
+                    <p class="text-muted mb-1">@forecast.Current.Summary</p>
+                    <p class="small text-muted mb-3">Wind @forecast.Current.WindSpeedKph.ToString("0.#") km/h</p>
+
+                    <h3 class="h6">Next days</h3>
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var day in forecast.Daily)
+                        {
+                            <li class="d-flex justify-content-between border-top py-2">
+                                <span>@day.Date.ToString("ddd d MMM")</span>
+                                <span>@day.TemperatureMinCelsius.ToString("0")° – @day.TemperatureMaxCelsius.ToString("0")° · @day.Summary</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private enum ActiveSelectionKind { Browser, Pinned }
+
+    private bool isAuthenticated;
+    private bool isLoading = true;
+    private bool hasCompletedInitialLoad;
+    private bool pinnedLocationsLoadFailed;
+    private string? statusMessage;
+    private BrowserGeoPosition? browserPosition;
+    private IReadOnlyList<PinnedLocationModel> pinnedLocations = [];
+    private WeatherMapForecast? forecast;
+    private ActiveSelectionKind activeSelection = ActiveSelectionKind.Browser;
+    private Guid? activePinnedId;
+    private string newPinName = "";
+    private Guid? renamingId;
+    private string renamingName = "";
+    private double? activeLatitude;
+    private double? activeLongitude;
+    private string activeLabel = "You";
+    private bool isMapReady;
+    private IJSObjectReference? weatherMapModule;
+    private bool interactiveInitialized;
+
+    private bool IsForecastLoading => isLoading || !hasCompletedInitialLoad;
+
+    private bool IsMapLoading => !isMapReady && (IsForecastLoading || activeLatitude is not null);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated == true;
+
+        if (isAuthenticated)
+        {
+            try
+            {
+                pinnedLocations = await WeatherMapApi.GetLocationsAsync();
+                if (pinnedLocations.Count > 0)
+                {
+                    activeSelection = ActiveSelectionKind.Pinned;
+                    activePinnedId = pinnedLocations.OrderBy(l => l.SortOrder).First().Id;
+                }
+            }
+            catch (HttpRequestException)
+            {
+                pinnedLocationsLoadFailed = true;
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
+        if (!interactiveInitialized)
+        {
+            interactiveInitialized = true;
+            browserPosition = await GeolocationService.GetCurrentPositionAsync();
+            await LoadForecastForActiveSelectionAsync();
+            ApplyDeferredStatusMessages();
+            if (activeLatitude is null)
+            {
+                isMapReady = true;
+            }
+
+            hasCompletedInitialLoad = true;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (weatherMapModule is null)
+        {
+            weatherMapModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/weatherMap.js");
+        }
+
+        if (activeLatitude is double lat && activeLongitude is double lon)
+        {
+            try
+            {
+                await weatherMapModule.InvokeVoidAsync("setMapPin", "weather-map", lat, lon, activeLabel);
+                isMapReady = true;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected during navigation or tab close.
+            }
+        }
+    }
+
+    private async Task OnLocationSelectionChanged(ChangeEventArgs args)
+    {
+        var value = args.Value?.ToString();
+        if (value == "browser")
+        {
+            activeSelection = ActiveSelectionKind.Browser;
+            activePinnedId = null;
+        }
+        else if (Guid.TryParse(value, out var pinnedId))
+        {
+            activeSelection = ActiveSelectionKind.Pinned;
+            activePinnedId = pinnedId;
+        }
+
+        await LoadForecastForActiveSelectionAsync();
+    }
+
+    private async Task RefreshForecastAsync() =>
+        await LoadForecastForActiveSelectionAsync(refresh: true);
+
+    private async Task LoadForecastForActiveSelectionAsync(bool refresh = false)
+    {
+        isLoading = true;
+        if (refresh || hasCompletedInitialLoad)
+        {
+            statusMessage = null;
+        }
+
+        var coordinates = ResolveActiveCoordinates();
+        if (coordinates is null)
+        {
+            isLoading = false;
+            if (hasCompletedInitialLoad)
+            {
+                isMapReady = true;
+                await InvokeAsync(StateHasChanged);
+            }
+
+            return;
+        }
+
+        isMapReady = false;
+        activeLatitude = coordinates.Value.Latitude;
+        activeLongitude = coordinates.Value.Longitude;
+        activeLabel = coordinates.Value.Label;
+
+        forecast = await WeatherMapApi.GetForecastAsync(
+            coordinates.Value.Latitude,
+            coordinates.Value.Longitude,
+            refresh);
+        if (forecast is null && (refresh || hasCompletedInitialLoad))
+        {
+            statusMessage = "Failed to load forecast.";
+        }
+
+        isLoading = false;
+        if (hasCompletedInitialLoad)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ApplyDeferredStatusMessages()
+    {
+        if (forecast is null)
+        {
+            if (ResolveActiveCoordinates() is not null)
+            {
+                statusMessage = "Failed to load forecast.";
+                return;
+            }
+
+            if (pinnedLocationsLoadFailed)
+            {
+                statusMessage = "Failed to load pinned places.";
+                return;
+            }
+
+            statusMessage = "Could not determine your browser location.";
+        }
+    }
+
+    private (double Latitude, double Longitude, string Label)? ResolveActiveCoordinates()
+    {
+        if (activeSelection == ActiveSelectionKind.Pinned && activePinnedId is Guid pinnedId)
+        {
+            var pin = pinnedLocations.SingleOrDefault(l => l.Id == pinnedId);
+            if (pin is not null)
+            {
+                return (pin.Latitude, pin.Longitude, pin.Name);
+            }
+        }
+
+        if (browserPosition is not null)
+        {
+            return (browserPosition.Latitude, browserPosition.Longitude, "Current position");
+        }
+
+        return null;
+    }
+
+    private async Task PinCurrentLocationAsync()
+    {
+        if (browserPosition is null || string.IsNullOrWhiteSpace(newPinName))
+        {
+            return;
+        }
+
+        try
+        {
+            var created = await WeatherMapApi.CreateLocationAsync(
+                newPinName.Trim(),
+                browserPosition.Latitude,
+                browserPosition.Longitude);
+            pinnedLocations = await WeatherMapApi.GetLocationsAsync();
+            activeSelection = ActiveSelectionKind.Pinned;
+            activePinnedId = created.Id;
+            newPinName = "";
+            await LoadForecastForActiveSelectionAsync();
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Failed to save pinned place.";
+        }
+    }
+
+    private async Task DeleteLocationAsync(Guid id)
+    {
+        try
+        {
+            await WeatherMapApi.DeleteLocationAsync(id);
+            pinnedLocations = await WeatherMapApi.GetLocationsAsync();
+            if (activePinnedId == id)
+            {
+                activeSelection = pinnedLocations.Count > 0 ? ActiveSelectionKind.Pinned : ActiveSelectionKind.Browser;
+                activePinnedId = pinnedLocations.OrderBy(l => l.SortOrder).FirstOrDefault()?.Id;
+            }
+            await LoadForecastForActiveSelectionAsync();
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Failed to delete pinned place.";
+        }
+    }
+
+    private void StartRename(PinnedLocationModel location)
+    {
+        renamingId = location.Id;
+        renamingName = location.Name;
+    }
+
+    private void CancelRename()
+    {
+        renamingId = null;
+        renamingName = "";
+    }
+
+    private async Task SaveRenameAsync()
+    {
+        if (renamingId is not Guid id || string.IsNullOrWhiteSpace(renamingName))
+        {
+            return;
+        }
+
+        try
+        {
+            await WeatherMapApi.UpdateLocationAsync(id, renamingName.Trim());
+            pinnedLocations = await WeatherMapApi.GetLocationsAsync();
+            CancelRename();
+            await LoadForecastForActiveSelectionAsync();
+        }
+        catch (HttpRequestException)
+        {
+            statusMessage = "Failed to rename pinned place.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (weatherMapModule is not null)
+        {
+            try
+            {
+                await weatherMapModule.InvokeVoidAsync("destroyMap");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit already gone; skip JS teardown.
+            }
+
+            await weatherMapModule.DisposeAsync();
+        }
+    }
+}

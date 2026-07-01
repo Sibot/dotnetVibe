@@ -1,0 +1,26 @@
+.weather-map-panel {
+    position: relative;
+    width: 100%;
+}
+
+.weather-map-panel__spinner {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: inherit;
+}
+
+.weather-forecast-panel {
+    min-height: 8rem;
+}
+
+.weather-forecast-panel__spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 8rem;
+}

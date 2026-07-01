@@ -12,11 +12,33 @@
       ]
     },
     {
+      "provider": "cdnjs",
+      "library": "bootstrap-icons@1.11.3",
+      "destination": "wwwroot/lib/bootstrap-icons/",
+      "files": [
+        "font/bootstrap-icons.min.css",
+        "font/fonts/bootstrap-icons.woff",
+        "font/fonts/bootstrap-icons.woff2"
+      ]
+    },
+    {
       "provider": "jsdelivr",
       "library": "chart.js@4.4.1",
       "destination": "wwwroot/lib/chart.js/",
       "files": [
         "dist/chart.umd.min.js"
+      ]
+    },
+    {
+      "provider": "jsdelivr",
+      "library": "leaflet@1.9.4",
+      "destination": "wwwroot/lib/leaflet/",
+      "files": [
+        "dist/leaflet.css",
+        "dist/leaflet.js",
+        "dist/images/marker-icon.png",
+        "dist/images/marker-icon-2x.png",
+        "dist/images/marker-shadow.png"
       ]
     }
   ]
